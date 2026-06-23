@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>WeatherWise</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- NAV -->
+  <nav class="topnav">
+    <div class="nav-brand">
+      <span class="nav-logo">🌤</span>
+      <span class="nav-title">WeatherWise</span>
+    </div>
+    <div class="nav-actions">
+      <span class="nav-location" id="locationLabel">📍 Locating…</span>
+      <button class="theme-toggle" id="themeToggle" aria-label="Toggle dark mode">
+        <span class="toggle-icon">🌙</span>
+      </button>
+    </div>
+  </nav>
+
+  <!-- ALERT BANNER -->
+  <div class="alert-banner" id="alertBanner" role="alert" aria-live="polite"></div>
+
+  <!-- HERO -->
+  <section class="hero">
+    <div class="orb-wrap">
+      <div class="orb-ring r1" aria-hidden="true"></div>
+      <div class="orb-ring r2" aria-hidden="true"></div>
+      <div class="orb" id="orb">
+        <span class="orb-icon" id="orbIcon">⛅</span>
+        <span class="orb-temp" id="orbTemp">--°</span>
+        <span class="orb-label" id="orbLabel">Loading…</span>
+      </div>
+    </div>
+
+    <p class="hero-time" id="heroTime">—</p>
+
+    <div class="stats-row">
+      <div class="stat">
+        <span class="stat-icon">🌡</span>
+        <span class="stat-val" id="feelsLike">--</span>
+        <span class="stat-lbl">Feels Like</span>
+      </div>
+      <div class="stat">
+        <span class="stat-icon">💧</span>
+        <span class="stat-val" id="humidity">--</span>
+        <span class="stat-lbl">Humidity</span>
+      </div>
+      <div class="stat">
+        <span class="stat-icon">💨</span>
+        <span class="stat-val" id="wind">--</span>
+        <span class="stat-lbl">Wind</span>
+      </div>
+      <div class="stat">
+        <span class="stat-icon">🌂</span>
+        <span class="stat-val" id="rain">--</span>
+        <span class="stat-lbl">Rain Chance</span>
+      </div>
+      <div class="stat">
+        <span class="stat-icon">☀️</span>
+        <span class="stat-val" id="uv">--</span>
+        <span class="stat-lbl">UV Index</span>
+      </div>
+      <div class="stat">
+        <span class="stat-icon">👁</span>
+        <span class="stat-val" id="visibility">--</span>
+        <span class="stat-lbl">Visibility</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- MAIN CARDS -->
+  <main class="grid">
+
+    <!-- OUTDOOR ADVISOR -->
+    <div class="card" id="outdoorCard">
+      <div class="card-head">
+        <span class="card-icon">🚶</span>
+        <h2 class="card-title">Should I Go Outside?</h2>
+        <span class="badge" id="outdoorBadge">—</span>
+      </div>
+      <ul class="tip-list" id="outdoorTips"></ul>
+    </div>
+
+    <!-- PLANT ADVISOR -->
+    <div class="card" id="plantCard">
+      <div class="card-head">
+        <span class="card-icon">🌿</span>
+        <h2 class="card-title">Plant Care Today</h2>
+        <span class="badge badge--green" id="plantBadge">—</span>
+      </div>
+      <ul class="tip-list" id="plantTips"></ul>
+    </div>
+
+  </main>
+
+  <!-- HOURLY FORECAST -->
+  <section class="forecast-wrap">
+    <div class="forecast-inner">
+      <h2 class="section-title">12-Hour Forecast</h2>
+      <div class="forecast-scroll" id="forecastScroll"></div>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer class="footer">
+    <span>WeatherWise</span>
+    <span class="dot">·</span>
+    <span id="lastUpdated">—</span>
+    <span class="dot">·</span>
+    <span>Open-Meteo API</span>
+  </footer>
+
+  <!-- LOADING -->
+  <div class="loader-overlay" id="loaderOverlay">
+    <div class="loader-orb"></div>
+    <p class="loader-msg" id="loaderMsg">Reading the skies…</p>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>

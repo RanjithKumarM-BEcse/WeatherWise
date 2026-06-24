@@ -4,7 +4,7 @@
  * Real data pipeline:
  *   1. navigator.geolocation  → lat/lon
  *   2. Nominatim (OSM)        → city name
- *   3. Open-Meteo API         → live weather + hourly
+ *   3. WeatherAPI.com API     → live weather + hourly
  *
  * No mock data. No scores. No daily summary.
  * No specific plant types — general plant advice only.
@@ -82,40 +82,65 @@ async function cityName(lat, lon) {
 }
 
 /* ═══════════════════════════════════════
-   3. OPEN-METEO — live weather
-   Free, no API key, CORS-open.
+   3. WEATHERAPI.COM — live weather
+   Requires free API key from weatherapi.com.
    ═══════════════════════════════════════ */
-async function fetchWeather(lat, lon) {
-  const p = new URLSearchParams({
-    latitude:           lat,
-    longitude:          lon,
-    current:            [
-      'temperature_2m',
-      'apparent_temperature',
-      'relative_humidity_2m',
-      'wind_speed_10m',
-      'wind_gusts_10m',
-      'weather_code',
-      'precipitation_probability',
-      'precipitation',
-      'uv_index',
-      'visibility',
-      'cloud_cover',
-    ].join(','),
-    hourly:             [
-      'temperature_2m',
-      'precipitation_probability',
-      'weather_code',
-    ].join(','),
-    wind_speed_unit:    'kmh',
-    temperature_unit:   'celsius',
-    precipitation_unit: 'mm',
-    timezone:           'auto',
-    forecast_days:      1,
-  });
+const API_KEY = 'YOUR_API_KEY';
 
-  const r = await fetch(`https://api.open-meteo.com/v1/forecast?${p}`);
-  if (!r.ok) throw new Error(`Open-Meteo ${r.status}`);
+function weatherApiToWmo(code) {
+  switch (code) {
+    case 1000: return 0;   // Sunny/Clear
+    case 1003: return 1;   // Partly cloudy
+    case 1006: return 2;   // Cloudy
+    case 1009: return 3;   // Overcast
+    case 1030: return 45;  // Mist
+    case 1135: return 45;  // Fog
+    case 1147: return 48;  // Freezing fog
+    case 1150:
+    case 1153:
+    case 1168:
+    case 1171: return 51;  // Drizzle / Freezing drizzle
+    case 1180:
+    case 1183: return 61;  // Light rain
+    case 1186:
+    case 1189: return 63;  // Moderate rain
+    case 1192:
+    case 1195: return 65;  // Heavy rain
+    case 1204:
+    case 1207: return 77;  // Sleet
+    case 1210:
+    case 1213: return 71;  // Light snow
+    case 1216:
+    case 1219: return 73;  // Snow
+    case 1222:
+    case 1225: return 75;  // Heavy snow
+    case 1240: return 80;  // Light rain showers
+    case 1243: return 81;  // Showers
+    case 1246: return 82;  // Heavy showers
+    case 1249:
+    case 1252: return 77;  // Sleet showers
+    case 1255: return 85;  // Snow showers
+    case 1258: return 86;  // Heavy snow showers
+    case 1087:
+    case 1273:
+    case 1276:
+    case 1279:
+    case 1282: return 95;  // Thunderstorms
+    default: return 0;
+  }
+}
+
+async function fetchWeather(lat, lon) {
+  if (API_KEY === 'YOUR_API_KEY') {
+    throw new Error('Please configure your WeatherAPI.com API Key in script.js');
+  }
+  const r = await fetch(`https://api.weatherapi.com/v1/forecast.json?key=${API_KEY}&q=${lat},${lon}&days=2&aqi=no&alerts=no`);
+  if (!r.ok) {
+    if (r.status === 401 || r.status === 403) {
+      throw new Error('Invalid API Key for WeatherAPI.com');
+    }
+    throw new Error(`WeatherAPI error: ${r.status}`);
+  }
   return r.json();
 }
 
@@ -124,44 +149,53 @@ async function fetchWeather(lat, lon) {
    ═══════════════════════════════════════ */
 function normalise(api, city) {
   const c   = api.current;
-  const W   = wmo(c.weather_code);
-  const temp      = Math.round(c.temperature_2m);
-  const feels     = Math.round(c.apparent_temperature);
-  const humidity  = Math.round(c.relative_humidity_2m);
-  const wind      = Math.round(c.wind_speed_10m);
-  const gusts     = Math.round(c.wind_gusts_10m ?? wind);
-  const rain      = Math.round(c.precipitation_probability ?? 0);
-  const uv        = Math.round(c.uv_index ?? 0);
-  const vis       = c.visibility != null ? (c.visibility / 1000).toFixed(1) : null; // → km
-  const cloud     = Math.round(c.cloud_cover ?? 0);
-  const code      = c.weather_code;
-
-  /* ── hourly (next 12 from current hour) ── */
   const nowH  = new Date().getHours();
-  const hT    = api.hourly.temperature_2m           ?? [];
-  const hR    = api.hourly.precipitation_probability ?? [];
-  const hC    = api.hourly.weather_code              ?? [];
+  
+  // Get current hour's rain chance from forecast
+  const currentHourData = api.forecast?.forecastday[0]?.hour[nowH] || {};
+  const rain = Math.round(currentHourData.chance_of_rain ?? api.forecast?.forecastday[0]?.day?.daily_chance_of_rain ?? 0);
+  
+  const wmo_code = weatherApiToWmo(c.condition.code);
+  const W   = wmo(wmo_code);
+  
+  const temp      = Math.round(c.temp_c);
+  const feels     = Math.round(c.feelslike_c);
+  const humidity  = Math.round(c.humidity);
+  const wind      = Math.round(c.wind_kph);
+  const gusts     = Math.round(c.gust_kph ?? c.wind_kph);
+  const uv        = Math.round(c.uv ?? 0);
+  const vis       = c.vis_km != null ? parseFloat(c.vis_km).toFixed(1) : null; // → km
+  const cloud     = Math.round(c.cloud ?? 0);
+
+  /* ── hourly (next 12 from current hour across day 1 and day 2 if needed) ── */
+  const fDay0 = api.forecast?.forecastday[0]?.hour ?? [];
+  const fDay1 = api.forecast?.forecastday[1]?.hour ?? [];
+  const allHours = [...fDay0, ...fDay1];
+  
   const hourly = [];
-  for (let i = nowH; i < Math.min(nowH + 12, hT.length); i++) {
-    const h = i % 24;
+  for (let i = nowH; i < nowH + 12; i++) {
+    const hrData = allHours[i];
+    if (!hrData) continue;
+    const hrWmo = weatherApiToWmo(hrData.condition.code);
+    const hrNum = i % 24;
     hourly.push({
-      timeStr:  h.toString().padStart(2,'0') + ':00',
-      temp:     Math.round(hT[i] ?? temp),
-      rain:     Math.round(hR[i] ?? rain),
-      icon:     wmo(hC[i] ?? 0).icon,
+      timeStr:  hrNum.toString().padStart(2,'0') + ':00',
+      temp:     Math.round(hrData.temp_c),
+      rain:     Math.round(hrData.chance_of_rain ?? 0),
+      icon:     wmo(hrWmo).icon,
       isNow:    i === nowH,
     });
   }
 
   /* ── alert ── */
   let alert = null;
-  if (code >= 95) {
+  if (wmo_code >= 95) {
     alert = {
       icon: '⚡',
       title: 'Thunderstorm Warning — Stay Indoors',
       chips: ['Do not go outside', 'Unplug electronics', 'Keep plants sheltered'],
     };
-  } else if (code >= 65 || rain >= 85) {
+  } else if (wmo_code >= 65 || rain >= 85) {
     alert = {
       icon: '⛈',
       title: 'Heavy Rain Expected',
@@ -183,7 +217,7 @@ function normalise(api, city) {
 
   return { condition: W.label, icon: W.icon, orbA: W.a, orbB: W.b,
            temp, feels, humidity, wind, gusts, rain, uv, vis, cloud,
-           code, city, hourly, alert };
+           code: wmo_code, city, hourly, alert };
 }
 
 /* ═══════════════════════════════════════

@@ -85,7 +85,7 @@ async function cityName(lat, lon) {
    3. WEATHERAPI.COM — live weather
    Requires free API key from weatherapi.com.
    ═══════════════════════════════════════ */
-const API_KEY = 'YOUR_API_KEY';
+const API_KEY = '9e6cc9b07b2645d68dd184614262406';
 
 function weatherApiToWmo(code) {
   switch (code) {
